@@ -129,6 +129,55 @@ public class AlertService {
                 alertRepository.save(alert);
             }
         }
+
+        // Rule 5: Behavioral Deviation
+        List<Transaction> customerTransactions =
+                transactionRepository.findAll().stream()
+                        .filter(t -> t.getAccount().getCustomer().getCustomerId()
+                                .equals(transaction.getAccount().getCustomer().getCustomerId()))
+                        .filter(t -> t.getTransactionTime()
+                                .isBefore(transaction.getTransactionTime()))
+                        .toList();
+
+        double historicalAverage = customerTransactions.stream()
+                .mapToDouble(Transaction::getAmount)
+                .average()
+                .orElse(0);
+
+        if (historicalAverage > 0 &&
+                transaction.getAmount() > historicalAverage * 3) {
+
+            Alert alert = new Alert();
+
+            alert.setTransaction(transaction);
+            alert.setRuleName("BEHAVIORAL_DEVIATION");
+            alert.setRiskScore(80);
+            alert.setExplanation(
+                    "Transaction amount is more than 3 times the customer's historical average"
+            );
+            alert.setStatus("OPEN");
+            alert.setCreatedAt(LocalDateTime.now());
+
+            alertRepository.save(alert);
+        }
+
+        // Rule 6: Just-Below-Threshold Transaction
+        if (transaction.getAmount() >= 9500 &&
+                transaction.getAmount() < 10000) {
+
+            Alert alert = new Alert();
+
+            alert.setTransaction(transaction);
+            alert.setRuleName("JUST_BELOW_THRESHOLD");
+            alert.setRiskScore(75);
+            alert.setExplanation(
+                    "Transaction amount is unusually close to the 10,000 reporting threshold"
+            );
+            alert.setStatus("OPEN");
+            alert.setCreatedAt(LocalDateTime.now());
+
+            alertRepository.save(alert);
+        }
     }
 
     public List<Alert> getAllAlerts() {
